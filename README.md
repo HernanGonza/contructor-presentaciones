@@ -8,11 +8,20 @@ Editor visual (React + Vite) para armar presentaciones con transiciones y animac
     npm run dev          # http://localhost:5173
     npm run build        # dist/index.html (el editor, también en un solo archivo)
 
-## Docker
+## Docker (edición en equipo)
 
     docker compose up -d --build     # http://localhost:8081  (cambiar con PORT=80 docker compose up -d --build)
+    DB_PASSWORD=algo-seguro docker compose up -d --build   # recomendado: cambiar la clave de Postgres
 
-Es solo nginx sirviendo archivos estáticos: no hay backend ni base de datos. Los proyectos se autoguardan en el navegador de cada persona.
+Levanta 3 contenedores: `db` (Postgres 16, datos en el volumen `pgdata`), `api` (`server/`, Node) y `constructor` (nginx: sirve el editor y reenvía `/api` a la API).
+
+- La pantalla de inicio lista las presentaciones guardadas del equipo (tarjetas). Al entrar a una se edita y **se autoguarda en Postgres**.
+- Hay que escribir «Tu nombre» arriba a la derecha: queda como «editado por».
+- Edición simultánea: no es en vivo. Cada guardado lleva la versión que la persona tenía; si otra guardó antes, el editor avisa y deja elegir entre cargar la versión del equipo o guardar la propia encima. Cada 8 s consulta si hay una versión más nueva y ofrece cargarla.
+- Backup: `docker exec constructor-db pg_dump -U constructor constructor > backup.sql`
+- Sin autenticación: pensado para una red interna.
+
+Desarrollo local: levantá un Postgres, corré en `server/` `DATABASE_URL=postgres://usuario:clave@localhost:5432/constructor npm start` (puerto 3000) y `npm run dev` en la raíz (el proxy `/api` apunta a :3000).
 
 ## Cómo funciona
 

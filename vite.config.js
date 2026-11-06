@@ -7,5 +7,6 @@ import { viteSingleFile } from "vite-plugin-singlefile";
 export default defineConfig({
   plugins: [react(), viteSingleFile()],
   base: "./",
+  server: { proxy: { "/api": process.env.API_URL || "http://localhost:3000" } },
   build: { outDir: "dist", assetsInlineLimit: 100_000_000, chunkSizeWarningLimit: 100_000 },
 });

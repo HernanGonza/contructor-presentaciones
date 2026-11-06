@@ -5,7 +5,7 @@ import { cssDeck } from "../shared/estilos.js";
 import { FORMATOS } from "../shared/constantes.js";
 import { PLANTILLAS, nombreSlide, normalizar, nuevaDiapositiva, nuevoBloque, nuevoDeck, slideDesdePlantilla, uid, activosUsados } from "../shared/modelo.js";
 import { useDeck } from "./store.js";
-import { guardarLocal } from "./db.js";
+import { api, fechaCorta, leerAutor } from "./api.js";
 import { cssOak } from "./fuentesOak.js";
 import { fuenteDesdeArchivo, procesarImagen } from "./imagenes.js";
 import { abrirArchivo, exportarGuion, exportarHtml, guardarProyecto } from "./exportar.js";
@@ -33,7 +33,7 @@ const Miniatura = memo(
 const FORMAS = (tipo) => ({ forma: tipo, ...(tipo === "linea" || tipo === "flecha" ? { anchoBorde: 8 } : {}) });
 const editable = (el) => el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
 
-export default function App({ inicial }) {
+export default function App({ id, inicial, versionInicial, onInicio }) {
   const { deck, cambiar, vivo, marca, undo, redo, cargar, puedeUndo, puedeRedo } = useDeck(inicial);
   const [slideId, setSlideId] = useState(inicial.slides[0]?.id);
   const [sel, setSel] = useState([]);
@@ -44,7 +44,9 @@ export default function App({ inicial }) {
   const [menuPlantillas, setMenuPlantillas] = useState(false);
   const [menuArchivo, setMenuArchivo] = useState(false);
   const [notasAbiertas, setNotasAbiertas] = useState(true);
-  const [estado, setEstado] = useState("Guardado");
+  const [estado, setEstado] = useState("Guardado en el servidor");
+  const [conflicto, setConflicto] = useState(null); // otra persona guardó antes que yo
+  const [remoto, setRemoto] = useState(null); // hay una versión más nueva y yo no tengo cambios pendientes
   const [aviso, setAviso] = useState(null);
   const [pasoCascada, setPasoCascada] = useState(0.15);
   const [arrastrando, setArrastrando] = useState(null);
@@ -66,14 +68,80 @@ export default function App({ inicial }) {
     avisar.t = setTimeout(() => setAviso(null), ms);
   }, []);
 
-  // ── autoguardado ──
+  // ── guardado en el servidor (Postgres) con control de versión ──
+  const autor = leerAutor() || "Anónimo";
+  const deckRef = useRef(deck); deckRef.current = deck;
+  const ver = useRef(versionInicial);
+  const pendiente = useRef(false);
+  const cola = useRef(Promise.resolve());
+  const reintento = useRef(null);
+  const guardar = useCallback((forzar = false) => {
+    cola.current = cola.current.then(async () => {
+      clearTimeout(reintento.current);
+      const enviado = deckRef.current;
+      try {
+        const r = await api.guardar(id, enviado, autor, ver.current, forzar);
+        ver.current = r.version;
+        pendiente.current = deckRef.current !== enviado; // editó mientras guardaba
+        setConflicto(null); setRemoto(null);
+        setEstado(pendiente.current ? "Guardando…" : "Guardado " + fechaCorta(r.actualizado));
+        if (pendiente.current) guardar();
+      } catch (e) {
+        if (e.status === 409) { setConflicto(e.datos.actual); setEstado("⚠ Conflicto: otra persona guardó antes"); }
+        else if (e.status === 404) setEstado("⚠ La presentación fue borrada");
+        else { setEstado("⚠ Sin conexión, reintentando…"); reintento.current = setTimeout(() => guardar(forzar), 5000); }
+      }
+    });
+    return cola.current;
+  }, [id, autor]);
+
   const primera = useRef(true);
+  const recargado = useRef(false);
   useEffect(() => {
     if (primera.current) { primera.current = false; return; }
+    if (recargado.current) { recargado.current = false; return; } // vino del servidor: no hay nada que guardar
+    pendiente.current = true;
+    if (conflicto) return; // no pisar hasta que elija qué hacer
     setEstado("Guardando…");
-    const id = setTimeout(async () => setEstado((await guardarLocal("deck", deck)) ? "Guardado en este navegador" : "⚠ No se pudo guardar automáticamente"), 900);
-    return () => clearTimeout(id);
-  }, [deck]);
+    const t = setTimeout(() => guardar(), 1200);
+    return () => clearTimeout(t);
+  }, [deck]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ¿Alguien más guardó? Se consulta cada 8 s; si no tengo cambios pendientes aviso para recargar.
+  useEffect(() => {
+    const t = setInterval(async () => {
+      if (conflicto) return;
+      try {
+        const m = await api.meta(id);
+        if (m.version > ver.current && !pendiente.current) setRemoto(m);
+      } catch { /* sin red: ya lo avisa el guardado */ }
+    }, 8000);
+    return () => clearInterval(t);
+  }, [id, conflicto]);
+  useEffect(() => {
+    const f = (e) => { if (pendiente.current) { e.preventDefault(); e.returnValue = ""; } };
+    window.addEventListener("beforeunload", f);
+    return () => window.removeEventListener("beforeunload", f);
+  }, []);
+
+  const recargarDelServidor = async () => {
+    try {
+      const p = await api.obtener(id);
+      const d = normalizar(p.deck);
+      recargado.current = true; cargar(d); ver.current = p.version; pendiente.current = false;
+      if (!d.slides.some((x) => x.id === slideId)) setSlideId(d.slides[0]?.id);
+      setSel([]); setConflicto(null); setRemoto(null); setEstado("Guardado " + fechaCorta(p.actualizado));
+    } catch (e) { avisar("No se pudo recargar: " + e.message, 6000); }
+  };
+  const sobrescribir = () => {
+    if (!confirm("Tu versión reemplaza la que guardó la otra persona. ¿Seguro?")) return;
+    ver.current = conflicto.version; guardar(true);
+  };
+  const volverAlInicio = async () => {
+    if (pendiente.current && !conflicto) { setEstado("Guardando…"); await guardar(); }
+    if (pendiente.current && !confirm("Hay cambios sin guardar. ¿Salir igual y perderlos?")) return;
+    onInicio();
+  };
 
   // ── helpers de edición ──
   const upSlide = useCallback((fn, clave) =>
@@ -318,13 +386,8 @@ export default function App({ inicial }) {
       avisar(`Exportado «${deck.titulo}» · ${(bytes / 1048576).toFixed(1)} MB · se abre con doble clic, sin internet`, 6000);
     } catch (e) { avisar("No se pudo exportar: " + e.message, 8000); }
   };
-  const nuevo = (conEjemplo) => {
-    if (!confirm("¿Empezar una presentación nueva? Lo actual se descarta (guardá el proyecto antes si lo querés conservar).")) return;
-    const d = nuevoDeck(conEjemplo);
-    if (!conEjemplo) d.slides.push(slideDesdePlantilla(d, "vacia"));
-    cargar(d); setSlideId(d.slides[0].id); setSel([]); setVista("slide"); setMenuArchivo(false);
-  };
   const abrir = async (file) => {
+    if (!confirm("El contenido de esta presentación se reemplaza por el del archivo (el resto del equipo verá el cambio). ¿Seguir?")) return;
     try {
       const d = await abrirArchivo(file);
       cargar(d); setSlideId(d.slides[0]?.id); setSel([]); setVista("slide");
@@ -408,7 +471,7 @@ export default function App({ inicial }) {
       <style>{cssDeck(deck, cssOak)}</style>
 
       <header className="top">
-        <div className="marca"><b>◧</b> Constructor de presentaciones</div>
+        <button className="btn" onClick={volverAlInicio} title="Volver a las presentaciones guardadas">← Presentaciones</button>
         <input className="titulo" value={deck.titulo} onChange={(e) => patchDeck({ titulo: e.target.value }, "titulo")} title="Título de la presentación" />
         <div className="grupo">
           <button className="btn" onClick={undo} disabled={!puedeUndo} title="Deshacer (Ctrl+Z)">↶</button>
@@ -420,10 +483,9 @@ export default function App({ inicial }) {
             <>
               <div className="cortina" onClick={() => setMenuArchivo(false)} />
               <div className="menu">
-                <button onClick={() => nuevo(false)}>Nueva en blanco</button>
-                <button onClick={() => nuevo(true)}>Nueva con ejemplo</button>
+                <button onClick={() => { volverAlInicio(); setMenuArchivo(false); }}>Todas las presentaciones</button>
                 <hr />
-                <button onClick={() => { inputAbrir.current.click(); setMenuArchivo(false); }}>Abrir proyecto o HTML exportado…</button>
+                <button onClick={() => { inputAbrir.current.click(); setMenuArchivo(false); }}>Reemplazar con proyecto o HTML…</button>
                 <button onClick={() => { guardarProyecto(deck); setMenuArchivo(false); }}>Guardar proyecto (.json)</button>
                 <button onClick={() => { exportarGuion(deck); setMenuArchivo(false); }}>Exportar guion (.md)</button>
               </div>
@@ -437,6 +499,20 @@ export default function App({ inicial }) {
           <button className="btn primario" onClick={exportar} title="Descarga un único .html que funciona sin internet">⬇ Exportar HTML</button>
         </div>
       </header>
+
+      {conflicto && (
+        <div className="banda peligro">
+          <span><b>{conflicto.editado_por}</b> guardó cambios {fechaCorta(conflicto.actualizado)} y los tuyos todavía no se guardaron.</span>
+          <button className="btn" onClick={recargarDelServidor}>Descartar lo mío y cargar la suya</button>
+          <button className="btn peligro" onClick={sobrescribir}>Guardar la mía encima</button>
+        </div>
+      )}
+      {remoto && !conflicto && (
+        <div className="banda">
+          <span><b>{remoto.editado_por}</b> guardó una versión más nueva {fechaCorta(remoto.actualizado)}.</span>
+          <button className="btn primario" onClick={recargarDelServidor}>Cargar cambios</button>
+        </div>
+      )}
 
       <div className="cuerpo">
         <aside className="izq">
