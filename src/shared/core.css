@@ -128,7 +128,3 @@
 .indice li:hover, .indice li.act { background: rgba(255,255,255,.12); }
 .indice li.act { color: var(--resalte); }
 
-@media (prefers-reduced-motion: reduce) {
-  .escenario .hoja { transition: none !important; }
-  .escenario .an, .escenario .bc, .escenario .lst li, .escenario .barra i { animation: none !important; transition: none !important; }
-}
