@@ -1,0 +1,8 @@
+services:
+  constructor:
+    build: .
+    image: constructor-presentaciones
+    container_name: constructor-presentaciones
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8081}:80"

@@ -1,0 +1,7 @@
+node_modules
+dist
+dist-player
+.git
+.claude
+graft
+*.log

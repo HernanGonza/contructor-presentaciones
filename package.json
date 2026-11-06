@@ -1,0 +1,22 @@
+{
+  "name": "constructor-presentaciones",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "predev": "npm run build:player",
+    "dev": "vite --host",
+    "build:player": "vite build --config vite.player.config.js",
+    "build": "npm run build:player && vite build",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.11",
+    "vite-plugin-singlefile": "^2.3.4"
+  }
+}
