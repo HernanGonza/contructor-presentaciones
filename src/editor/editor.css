@@ -184,3 +184,23 @@ body:has(.inicio) { overflow: auto; }
 .tj-borrar { position: absolute; top: 8px; right: 8px; background: rgba(0,0,0,.55); border: 0; border-radius: 6px; padding: 4px 7px; opacity: 0; transition: opacity .15s; }
 .tarjeta:hover .tj-borrar, .tj-borrar:focus-visible { opacity: 1; }
 .tj-borrar:hover { background: var(--rojo); }
+
+/* ── diálogos (estilo SweetAlert) ── */
+.dlg-fondo { position: fixed; inset: 0; z-index: 300; display: grid; place-items: center; padding: 16px; background: rgba(8,10,13,.62); backdrop-filter: blur(3px); animation: dlg-fondo .16s ease-out; }
+.dlg-fondo.sale { opacity: 0; transition: opacity .14s; }
+.dlg { width: min(420px, 100%); background: var(--panel); border: 1px solid var(--linea); border-radius: 16px; padding: 26px 26px 22px; text-align: center; box-shadow: 0 24px 70px rgba(0,0,0,.65); animation: dlg-entra .28s cubic-bezier(.34,1.56,.64,1); }
+.dlg-fondo.sale .dlg { transform: scale(.94); transition: transform .14s; }
+.dlg h2 { margin: 14px 0 6px; font-size: 20px; line-height: 1.25; }
+.dlg p { margin: 0; color: var(--txt2); font-size: 14px; line-height: 1.5; }
+.dlg-ico { --c: var(--azul2); width: 70px; height: 70px; margin: 0 auto; border-radius: 50%; border: 3px solid var(--c); color: var(--c); display: grid; place-items: center; font-size: 34px; font-weight: 700; animation: dlg-ico .4s .08s cubic-bezier(.34,1.56,.64,1) both; }
+.dlg.peligro .dlg-ico, .dlg.error .dlg-ico { --c: var(--rojo); }
+.dlg.pregunta .dlg-ico { --c: #f0b429; }
+.dlg.exito .dlg-ico { --c: #3fb950; }
+.dlg-btns { display: flex; gap: 10px; justify-content: center; margin-top: 22px; }
+.dlg-btns .btn { min-width: 110px; padding: 9px 16px; font-size: 14px; border-radius: 8px; }
+.dlg-btns .btn:focus-visible { outline: 2px solid var(--azul2); outline-offset: 2px; }
+.btn.rojo { background: var(--rojo); border-color: var(--rojo); font-weight: 600; }
+.btn.rojo:hover:not(:disabled) { background: #f0686c; border-color: #f0686c; }
+@keyframes dlg-fondo { from { opacity: 0 } }
+@keyframes dlg-entra { from { opacity: 0; transform: scale(.86) translateY(12px) } }
+@keyframes dlg-ico { from { transform: scale(0) rotate(-40deg) } }

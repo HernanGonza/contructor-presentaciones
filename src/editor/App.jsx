@@ -5,6 +5,7 @@ import { cssDeck } from "../shared/estilos.js";
 import { FORMATOS } from "../shared/constantes.js";
 import { PLANTILLAS, nombreSlide, normalizar, nuevaDiapositiva, nuevoBloque, nuevoDeck, slideDesdePlantilla, uid, activosUsados } from "../shared/modelo.js";
 import { useDeck } from "./store.js";
+import { confirmar } from "./dialogos.jsx";
 import { api, fechaCorta, leerAutor } from "./api.js";
 import { cssOak } from "./fuentesOak.js";
 import { fuenteDesdeArchivo, procesarImagen } from "./imagenes.js";
@@ -133,13 +134,13 @@ export default function App({ id, inicial, versionInicial, onInicio }) {
       setSel([]); setConflicto(null); setRemoto(null); setEstado("Guardado " + fechaCorta(p.actualizado));
     } catch (e) { avisar("No se pudo recargar: " + e.message, 6000); }
   };
-  const sobrescribir = () => {
-    if (!confirm("Tu versión reemplaza la que guardó la otra persona. ¿Seguro?")) return;
+  const sobrescribir = async () => {
+    if (!(await confirmar({ titulo: "¿Guardar tu versión encima?", texto: `Se pierde lo que guardó ${conflicto.editado_por}. Esto no se puede deshacer.`, ok: "Guardar la mía", tipo: "peligro" }))) return;
     ver.current = conflicto.version; guardar(true);
   };
   const volverAlInicio = async () => {
     if (pendiente.current && !conflicto) { setEstado("Guardando…"); await guardar(); }
-    if (pendiente.current && !confirm("Hay cambios sin guardar. ¿Salir igual y perderlos?")) return;
+    if (pendiente.current && !(await confirmar({ titulo: "Hay cambios sin guardar", texto: "Si salís ahora, los cambios que no llegaron al servidor se pierden.", ok: "Salir igual", cancelar: "Quedarme", tipo: "peligro" }))) return;
     onInicio();
   };
 
@@ -387,7 +388,7 @@ export default function App({ id, inicial, versionInicial, onInicio }) {
     } catch (e) { avisar("No se pudo exportar: " + e.message, 8000); }
   };
   const abrir = async (file) => {
-    if (!confirm("El contenido de esta presentación se reemplaza por el del archivo (el resto del equipo verá el cambio). ¿Seguir?")) return;
+    if (!(await confirmar({ titulo: "¿Reemplazar el contenido?", texto: "La presentación pasa a tener lo que trae el archivo, y el resto del equipo verá el cambio.", ok: "Reemplazar", tipo: "peligro" }))) return;
     try {
       const d = await abrirArchivo(file);
       cargar(d); setSlideId(d.slides[0]?.id); setSel([]); setVista("slide");

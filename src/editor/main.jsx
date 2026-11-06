@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import "../shared/core.css";
 import "./editor.css";
 import App from "./App.jsx";
+import { Dialogos } from "./dialogos.jsx";
 import Inicio, { irA } from "./Inicio.jsx";
 import { api } from "./api.js";
 import { normalizar } from "../shared/modelo.js";
@@ -31,7 +32,7 @@ function Raiz() {
     window.addEventListener("hashchange", f);
     return () => window.removeEventListener("hashchange", f);
   }, []);
-  return id ? <Editor id={id} /> : <Inicio />;
+  return <>{id ? <Editor id={id} /> : <Inicio />}<Dialogos /></>;
 }
 
 createRoot(document.getElementById("root")).render(<Raiz />);

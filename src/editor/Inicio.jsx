@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { abrirArchivo } from "./exportar.js";
+import { avisar, confirmar } from "./dialogos.jsx";
 import { api, fechaCorta, guardarAutor, leerAutor } from "./api.js";
 import { nuevoDeck, slideDesdePlantilla } from "../shared/modelo.js";
 
@@ -21,7 +22,7 @@ export default function Inicio() {
   }, [cargar]);
 
   const crear = async (deck) => {
-    if (!autor.trim()) { alert("Escribí tu nombre arriba para que el equipo sepa quién edita."); return; }
+    if (!autor.trim()) { await avisar({ titulo: "¿Cómo te llamás?", texto: "Escribí tu nombre arriba a la derecha para que el equipo sepa quién edita cada presentación.", tipo: "pregunta" }); return; }
     setOcupado(true);
     try { irA((await api.crear(deck, autor)).id); }
     catch (e) { setError(e.message); setOcupado(false); }
@@ -32,10 +33,10 @@ export default function Inicio() {
     crear(d);
   };
   const importar = async (file) => {
-    try { await crear(await abrirArchivo(file)); } catch (e) { alert("No se pudo abrir: " + e.message); }
+    try { await crear(await abrirArchivo(file)); } catch (e) { avisar({ titulo: "No se pudo abrir el archivo", texto: e.message, tipo: "error" }); }
   };
   const borrar = async (p) => {
-    if (!confirm(`¿Borrar «${p.titulo}» para todo el equipo? No se puede deshacer.`)) return;
+    if (!(await confirmar({ titulo: "¿Borrar la presentación?", texto: `«${p.titulo}» se elimina para todo el equipo. No se puede deshacer.`, ok: "Sí, borrar", tipo: "peligro" }))) return;
     try { await api.borrar(p.id); cargar(); } catch (e) { setError(e.message); }
   };
 
