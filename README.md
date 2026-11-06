@@ -23,6 +23,21 @@ Levanta 3 contenedores: `db` (Postgres 16, datos en el volumen `pgdata`), `api` 
 
 Desarrollo local: levantá un Postgres, corré en `server/` `DATABASE_URL=postgres://usuario:clave@localhost:5432/constructor npm start` (puerto 3000) y `npm run dev` en la raíz (el proxy `/api` apunta a :3000).
 
+## Publicarlo en una ruta del dominio de ecodatos (`/presentaciones/`)
+
+El nginx de ecodatos (`app-formularios-nginx`) ya ocupa `/api/`, así que el constructor usa rutas relativas y cuelga entero de `/presentaciones/`.
+
+1. En el `.env` de este proyecto (en el servidor):
+
+        DB_PASSWORD=tu-clave
+        COMPOSE_FILE=docker-compose.yml:docker-compose.ecodatos.yml
+
+   y `docker compose up -d --build` (el contenedor `constructor-presentaciones` queda también en la red `supabase`).
+2. En `ecodatos/infra/nginx/nginx.conf`, dentro del `server { … }`, agregar el bloque de `ecodatos-nginx-presentaciones.conf` (de este repo) y reiniciar ese nginx: `docker restart app-formularios-nginx`.
+3. Entrar a `https://<dominio>/presentaciones/`.
+
+El puerto 8081 sigue funcionando para acceder directo.
+
 ## Cómo funciona
 
 - `src/shared/`: modelo, bloques, diapositivas, transiciones, cámara y `Reproductor` (lo usan el editor y el HTML exportado).

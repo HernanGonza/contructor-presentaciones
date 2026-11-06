@@ -1,4 +1,6 @@
-// Cliente de la API (/api, la sirve nginx y la atiende server/index.js → Postgres).
+// Cliente de la API (la sirve nginx y la atiende server/index.js → Postgres).
+// Las rutas son RELATIVAS a la página ("api/…"), así funciona igual en la raíz (/) que colgado de una ruta (/presentaciones/).
+const BASE = "api/presentaciones";
 async function pedir(metodo, url, cuerpo) {
   let r;
   try {
@@ -12,12 +14,12 @@ async function pedir(metodo, url, cuerpo) {
 }
 
 export const api = {
-  listar: () => pedir("GET", "/api/presentaciones"),
-  obtener: (id) => pedir("GET", `/api/presentaciones/${id}`),
-  meta: (id) => pedir("GET", `/api/presentaciones/${id}/meta`),
-  crear: (deck, autor) => pedir("POST", "/api/presentaciones", { deck, autor }),
-  guardar: (id, deck, autor, version, forzar = false) => pedir("PUT", `/api/presentaciones/${id}`, { deck, autor, version, forzar }),
-  borrar: (id) => pedir("DELETE", `/api/presentaciones/${id}`),
+  listar: () => pedir("GET", BASE),
+  obtener: (id) => pedir("GET", `${BASE}/${id}`),
+  meta: (id) => pedir("GET", `${BASE}/${id}/meta`),
+  crear: (deck, autor) => pedir("POST", BASE, { deck, autor }),
+  guardar: (id, deck, autor, version, forzar = false) => pedir("PUT", `${BASE}/${id}`, { deck, autor, version, forzar }),
+  borrar: (id) => pedir("DELETE", `${BASE}/${id}`),
 };
 
 // Nombre de quien edita (se muestra como «editado por»). Queda en este navegador.

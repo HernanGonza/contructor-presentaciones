@@ -1,0 +1,10 @@
+# Override para colgar el constructor del nginx de ecodatos (ruta /presentaciones/ del mismo dominio).
+# Lo une a la red "supabase" para que ese nginx lo encuentre por nombre. Se activa con COMPOSE_FILE en .env (ver README).
+services:
+  constructor:
+    networks: [default, supabase]
+
+networks:
+  supabase:
+    name: supabase
+    external: true
